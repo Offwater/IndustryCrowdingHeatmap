@@ -7,66 +7,169 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; font-family: "Microsoft YaHei", sans-serif; }
-  #title { color: #eee; text-align: center; padding: 20px 0 0; font-size: 22px; letter-spacing: 2px; }
-  #subtitle { color: #999; text-align: center; padding: 4px 0 16px; font-size: 13px; }
-  #chart { width: 100%; height: calc(100vh - 90px); }
+  body { background: #100c2a; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; overflow: hidden; }
+  #header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    padding: 14px 24px 8px;
+    background: linear-gradient(180deg, rgba(16,12,42,1) 60%, rgba(16,12,42,0) 100%);
+    pointer-events: none;
+  }
+  #title { color: #e8e8f0; font-size: 22px; letter-spacing: 3px; font-weight: 600; }
+  #subtitle { color: #8888a0; font-size: 13px; margin-top: 2px; }
+  #chart { width: 100vw; height: 100vh; }
 </style>
 </head>
 <body>
-<div id="title">A股申万一级行业拥挤度热力图</div>
-<div id="subtitle">颜色深浅表示成交额占比的60日滚动分位值（0-100） · 红=拥挤 绿=冷清</div>
+<div id="header">
+  <div id="title">A股申万一级行业拥挤度热力图</div>
+  <div id="subtitle">成交额占比 60 日滚动分位 · 绿 = 低拥挤 · 黄 = 中等 · 红 = 高拥挤</div>
+</div>
 <div id="chart"></div>
 <script>
 const dates = {{ dates_json }};
 const industries = {{ industries_json }};
 const rawData = {{ data_json }};
 
-const chart = echarts.init(document.getElementById('chart'));
+const chart = echarts.init(document.getElementById('chart'), null, {
+  devicePixelRatio: window.devicePixelRatio || 1
+});
+
+// 计算合理的 grid left，根据最长的行业名称
+const maxNameLen = Math.max(...industries.map(s => s.length));
+const gridLeft = Math.max(90, maxNameLen * 15 + 10);
+
+// DataZoom 默认展示最近 60 个交易日（约三个月）
+const defaultEnd = 100;
+const defaultStart = Math.max(0, dates.length - 60);
 
 chart.setOption({
+  backgroundColor: '#100c2a',
   tooltip: {
-    position: 'top',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderColor: '#333',
-    textStyle: { color: '#fff' },
-    formatter: p => `${industries[p.value[1]]}<br/>${dates[p.value[0]]}<br/>拥挤度: <b>${p.value[2].toFixed(1)}</b>`
+    trigger: 'item',
+    backgroundColor: 'rgba(20,16,48,0.94)',
+    borderColor: '#4a4a6a',
+    borderWidth: 1,
+    padding: [10, 14],
+    textStyle: { color: '#e8e8f0', fontSize: 13 },
+    formatter: function (p) {
+      const date = dates[p.value[0]];
+      const industry = industries[p.value[1]];
+      const val = p.value[2].toFixed(1);
+      return `<div style="font-size:14px;font-weight:600;margin-bottom:4px">${industry}</div>
+              <div style="color:#aaa;margin-bottom:2px">${date}</div>
+              <div>拥挤度分位: <b style="font-size:15px;color:#f0c060">${val}</b></div>`;
+    }
   },
-  grid: { left: 100, right: 60, top: 10, bottom: 60 },
+  grid: {
+    left: gridLeft,
+    right: 100,
+    top: 80,
+    bottom: 80
+  },
   xAxis: {
-    type: 'category', data: dates,
-    axisLabel: { color: '#aaa', fontSize: 11, rotate: 45, formatter: v => v.slice(5) },
-    axisLine: { lineStyle: { color: '#444' } },
-    splitArea: { show: false }
+    type: 'category',
+    data: dates,
+    position: 'bottom',
+    axisLabel: {
+      color: '#8888a0',
+      fontSize: 11,
+      rotate: 45,
+      formatter: function (v) { return v.slice(5); }
+    },
+    axisLine: { lineStyle: { color: '#3a3a5a' } },
+    axisTick: { alignWithLabel: true, lineStyle: { color: '#3a3a5a' } },
+    splitLine: { show: false }
   },
   yAxis: {
-    type: 'category', data: industries,
-    axisLabel: { color: '#ddd', fontSize: 12 },
-    axisLine: { lineStyle: { color: '#444' } },
+    type: 'category',
+    data: industries,
+    position: 'left',
+    axisLabel: {
+      color: '#c8c8e0',
+      fontSize: 12
+    },
+    axisLine: { lineStyle: { color: '#3a3a5a' } },
+    axisTick: { show: false },
+    splitLine: { show: false }
   },
   visualMap: {
-    min: 0, max: 100,
+    min: 0,
+    max: 100,
     calculable: true,
-    orient: 'vertical', right: 10, top: 'center',
-    inRange: { color: ['#1e8c4a', '#27ae60', '#5ab390', '#8dd3a8', '#c7e9b0', '#f2f0a0', '#f9ca24', '#f5a623', '#e8852b', '#e65c2b', '#e63e2b', '#c0392b'] },
-    textStyle: { color: '#aaa' },
-    formatter: v => v.toFixed(1)
+    orient: 'vertical',
+    right: 16,
+    top: 'center',
+    itemWidth: 16,
+    itemHeight: 180,
+    textStyle: { color: '#aaa', fontSize: 11 },
+    inRange: {
+      color: [
+        '#1a6b3c',  // 深绿 0
+        '#2d8c4e',
+        '#45ad60',
+        '#6cc078',
+        '#98d490',
+        '#c3e3a8',  // 浅绿 ~35
+        '#e8edb0',
+        '#f5e56c',  // 黄 ~50
+        '#f5c842',
+        '#f0a030',
+        '#e87820',
+        '#d94a1a',
+        '#c62828'   // 深红 100
+      ]
+    },
+    formatter: function (v) { return v.toFixed(1); }
   },
+  dataZoom: [
+    {
+      type: 'slider',
+      xAxisIndex: 0,
+      start: defaultStart,
+      end: defaultEnd,
+      bottom: 16,
+      height: 24,
+      borderColor: '#3a3a5a',
+      backgroundColor: 'rgba(30,24,60,0.6)',
+      fillerColor: 'rgba(100,80,180,0.2)',
+      handleStyle: { color: '#7a6ab0', borderColor: '#7a6ab0' },
+      textStyle: { color: '#8888a0', fontSize: 10 },
+      moveHandleStyle: { color: '#7a6ab0' }
+    },
+    {
+      type: 'inside',
+      xAxisIndex: 0,
+      zoomOnMouseWheel: true,
+      moveOnMouseMove: true
+    }
+  ],
   series: [{
     type: 'heatmap',
     data: rawData,
     label: { show: false },
     emphasis: {
       itemStyle: {
-        shadowBlur: 10,
-        shadowColor: 'rgba(255,255,255,0.3)'
+        shadowBlur: 12,
+        shadowColor: 'rgba(200,200,255,0.45)',
+        borderColor: '#fff',
+        borderWidth: 1
       }
     },
-    itemStyle: { borderWidth: 1, borderColor: '#1a1a2e' }
+    itemStyle: {
+      borderWidth: 1,
+      borderColor: 'rgba(16,12,42,0.5)'
+    }
   }]
 });
 
-window.addEventListener('resize', () => chart.resize());
+window.addEventListener('resize', function () {
+  const newMaxLen = Math.max(...industries.map(s => s.length));
+  const newLeft = Math.max(90, newMaxLen * 15 + 10);
+  chart.setOption({
+    grid: { left: newLeft }
+  });
+  chart.resize();
+});
 </script>
 </body>
 </html>
