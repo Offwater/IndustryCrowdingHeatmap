@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股行业拥挤度热力图</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; font-family: "Microsoft YaHei", sans-serif; }
+  #title { color: #eee; text-align: center; padding: 20px 0 0; font-size: 22px; letter-spacing: 2px; }
+  #subtitle { color: #999; text-align: center; padding: 4px 0 16px; font-size: 13px; }
+  #chart { width: 100%; height: calc(100vh - 90px); }
+</style>
+</head>
+<body>
+<div id="title">A股申万一级行业拥挤度热力图</div>
+<div id="subtitle">颜色深浅表示成交额占比的60日滚动分位值（0-100） · 红=拥挤 绿=冷清</div>
+<div id="chart"></div>
+<script>
+const dates = {{ dates_json }};
+const industries = {{ industries_json }};
+const rawData = {{ data_json }};
+
+const chart = echarts.init(document.getElementById('chart'));
+
+chart.setOption({
+  tooltip: {
+    position: 'top',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderColor: '#333',
+    textStyle: { color: '#fff' },
+    formatter: p => `${industries[p.value[1]]}<br/>${dates[p.value[0]]}<br/>拥挤度: <b>${p.value[2].toFixed(1)}</b>`
+  },
+  grid: { left: 100, right: 60, top: 10, bottom: 60 },
+  xAxis: {
+    type: 'category', data: dates,
+    axisLabel: { color: '#aaa', fontSize: 11, rotate: 45, formatter: v => v.slice(5) },
+    axisLine: { lineStyle: { color: '#444' } },
+    splitArea: { show: false }
+  },
+  yAxis: {
+    type: 'category', data: industries,
+    axisLabel: { color: '#ddd', fontSize: 12 },
+    axisLine: { lineStyle: { color: '#444' } },
+  },
+  visualMap: {
+    min: 0, max: 100,
+    calculable: true,
+    orient: 'vertical', right: 10, top: 'center',
+    inRange: { color: ['#1e8c4a', '#27ae60', '#5ab390', '#8dd3a8', '#c7e9b0', '#f2f0a0', '#f9ca24', '#f5a623', '#e8852b', '#e65c2b', '#e63e2b', '#c0392b'] },
+    textStyle: { color: '#aaa' },
+    formatter: v => v.toFixed(1)
+  },
+  series: [{
+    type: 'heatmap',
+    data: rawData,
+    label: { show: false },
+    emphasis: {
+      itemStyle: {
+        shadowBlur: 10,
+        shadowColor: 'rgba(255,255,255,0.3)'
+      }
+    },
+    itemStyle: { borderWidth: 1, borderColor: '#1a1a2e' }
+  }]
+});
+
+window.addEventListener('resize', () => chart.resize());
+</script>
+</body>
+</html>
